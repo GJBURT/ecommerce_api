@@ -11,7 +11,7 @@ from flask_marshmallow import Marshmallow
 app = Flask(__name__)
 
 # MySQL Database connection configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:CodeTemple25@@127.0.0.1:3306/ecommerce_api'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:CodeTemple25%40@localhost/ecommerce_api'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Creating Base Model
