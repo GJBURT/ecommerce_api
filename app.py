@@ -3,7 +3,7 @@
 import os
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine
 from flask_marshmallow import Marshmallow
 
@@ -11,7 +11,7 @@ from flask_marshmallow import Marshmallow
 app = Flask(__name__)
 
 # MySQL Database connection configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:CodeTemple25@@localhost/ecommerce_api'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:CodeTemple25@@127.0.0.1:3306/ecommerce_api'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Creating Base Model
