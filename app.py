@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine
 from flask_marshmallow import Marshmallow
+from werkzeug.exceptions import HTTPException
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -237,6 +238,27 @@ def remove_product_from_order(order_id, product_id):
     order.products.remove(product)
     db.session.commit()
     return jsonify({"message": f"{product.name} was successfully removed from the order: {order.id}"}), 204
+
+# Global error handler for HTTP exceptions
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    response = e.get_response()
+    response.data = jsonify({
+        "error": e.name,
+        "description": e.description,
+        "status_code": e.code
+    }).data
+    response.content_type = "application/json"
+    return response
+
+# Global error handler for non-HTTP exceptions
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return jsonify({
+        "error": "Internal Server Error",
+        "description": str(e),
+        "status_code": 500
+    }), 500
 
 
 if __name__ == '__main__':
