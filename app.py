@@ -201,19 +201,20 @@ def delete_product(id):
     return jsonify({"message": f"{product.name} was successfully Deleted."}), 204
 
 # Order Endpoints
-# Get/orders:Retrieve all orders for a user
-@app.route('/orders', methods=['GET'])
-def get_orders():
-    orders = Order.query.all()
+# GET /orders/user/<user_id>: Get all orders for a user
+@app.route('/orders/user/<int:user_id>', methods=['GET'])
+def get_orders_by_user(user_id):
+    orders = Order.query.filter_by(user_id=user_id).all()
     order_schema = OrderSchema(many=True)
     return order_schema.jsonify(orders)
 
-# Get/orders/<id>:Retrieve an order by id
-@app.route('/orders/<int:id>', methods=['GET']) 
-def get_order(id):
-    order = Order.query.get_or_404(id)
-    order_schema = OrderSchema()
-    return order_schema.jsonify(order)
+# GET /orders/<order_id>/products: Get all products for an order
+@app.route('/orders/<int:order_id>/products', methods=['GET'])
+def get_products_by_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    products = order.products.all()
+    product_schema = ProductSchema(many=True)
+    return product_schema.jsonify(products)
 
 # POST/orders:Create a new order
 @app.route('/orders', methods=['POST'])
@@ -253,11 +254,11 @@ def remove_product_from_order(order_id, product_id):
     
     # Check if the product is in the order
     if product not in order.products:
-        return {'message': f'{Product.name} not in order'}, 400
+        return {'message': f'{Product} not in order'}, 400
     
     order.products.remove(product)
     db.session.commit()
-    return jsonify({"message": f"{product.name} was successfully removed from the order: {order.id}"}), 204
+    return jsonify({"message": f"{Product} was successfully removed from the order: {order.id}"}), 204
 
 # Global error handler for HTTP exceptions
 @app.errorhandler(HTTPException)
