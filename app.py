@@ -1,5 +1,6 @@
 # This will be an ecommerce API using Flask and MySQL
 # Importing necessary libraries
+from datetime import date
 import os
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
@@ -7,6 +8,8 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import create_engine
 from flask_marshmallow import Marshmallow
 from werkzeug.exceptions import HTTPException
+from flask_migrate import Migrate
+from marshmallow import ValidationError, fields, post_load
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -25,6 +28,8 @@ db.init_app(app)
 
 # Creating the database engine
 engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+
+migrate = Migrate(app, db)
 
 # Create all tables in the database to include User, Product, Order, 
 # and Order_Product Association tables
@@ -56,8 +61,8 @@ class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    order_date = db.Column(db.DateTime, nullable=False)
-
+    order_date = db.Column(db.Date, nullable=False, default=date.today)
+    
     # Many to-one relationship one order can have many products
     products = db.relationship('Product', secondary='order_product', lazy='dynamic')
 
@@ -88,12 +93,20 @@ class ProductSchema(ma.SQLAlchemyAutoSchema):
         
 # Order Schema
 class OrderSchema(ma.SQLAlchemyAutoSchema):
+    user_id = fields.Integer(required=True)  # Explicitly define user_id as an integer field
+    order_date = fields.Date(format='iso')  # Ensure order_date is handled as a Date field
+
     class Meta:
         model = Order
-        include_relationships = True
-        # Include foreign keys in the schema
-        include_fk = True
+        exclude = ("user",)
+        include_fk = True  # Include foreign keys like user_id
         load_instance = True
+
+    # Exclude the user relationship during deserialization
+    @post_load
+    def exclude_user_relationship(self, data, **kwargs):
+        data.pop('user', None)  # Remove the user relationship if it exists
+        return data
         
 # OrderProduct Schema
 class OrderProductSchema(ma.SQLAlchemyAutoSchema):
@@ -205,11 +218,18 @@ def get_order(id):
 # POST/orders:Create a new order
 @app.route('/orders', methods=['POST'])
 def create_order():
-    order_schema = OrderSchema()
-    new_order = order_schema.load(request.json, session=db.session)
-    db.session.add(new_order)
-    db.session.commit()
-    return order_schema.jsonify(new_order), 201
+    data = request.get_json()
+    try:
+        order_schema = OrderSchema()  # ← instantiate the schema
+        new_order = order_schema.load(data)  # ← use the instance to load the data
+        db.session.add(new_order)
+        db.session.commit()
+        return order_schema.jsonify(new_order), 201  # ← use the same schema instance for dump
+    except ValidationError as err:
+        return jsonify({'error': 'Validation Error', 'messages': err.messages}), 400
+    except Exception as e:
+        return jsonify({'error': 'Internal Server Error', 'description': str(e)}), 500
+
 
 # PUT/orders/<order_id>/add_product/<product_id>:Add a product to an order (prevent duplicates)
 @app.route('/orders/<int:order_id>/add_product/<int:product_id>', methods=['PUT'])
@@ -223,7 +243,7 @@ def add_product_to_order(order_id, product_id):
     
     order.products.append(product)
     db.session.commit()
-    return jsonify({"message": f"{product.name} was successfully added to the order: {order.id}"}), 204
+    return jsonify({"message": f"{product} was successfully added to the order: {order.id}"}), 204
 
 # DELETE/orders/<order_id>/remove_product/<product_id>:Remove a product from an order
 @app.route('/orders/<int:order_id>/remove_product/<int:product_id>', methods=['DELETE'])
